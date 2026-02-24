@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>交互式对话示例</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: "Microsoft Yahei", sans-serif;
+    }
+
+    body {
+      background-color: #000;
+      /* 移除居中，让游戏窗口占满整个body */
+      min-height: 100vh;
+      overflow: hidden;
+      /* 防止页面出现滚动条 */
+    }
+
+    /* 游戏窗口容器 - 核心修改：自适应整个页面 */
+    .game-window {
+      width: 100vw;
+      /* 宽度占满视口宽度 */
+      height: 100vh;
+      /* 高度占满视口高度 */
+      background-color: #fce4ec;
+      border-radius: 0;
+      /* 移除圆角，适配全屏 */
+      position: relative;
+      overflow: hidden;
+      box-shadow: none;
+      /* 移除阴影，全屏不需要 */
+    }
+
+    /* 角色立绘区域 */
+    .character-area {
+      width: 100%;
+      height: 100%;
+      background: url('./4.png') no-repeat center center;
+      background-size: cover;
+      /* 保持背景图铺满区域 */
+      position: relative;
+    }
+
+    /* 对话文本框 - 适配全屏布局 */
+    .dialog-box {
+      position: absolute;
+      bottom: 2vw;
+      /* 使用视口单位，适配不同屏幕 */
+      left: 2vw;
+      right: 8vw;
+      /* 给右侧按钮留出空间 */
+      background-color: rgba(0, 0, 0, 0.6);
+      color: #fff;
+      padding: 1.5vw;
+      /* 视口单位，自适应内边距 */
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+      /* 适配文本换行，防止溢出 */
+      max-height: 40vh;
+      overflow-y: auto;
+    }
+
+    .dialog-box:hover {
+      background-color: rgba(0, 0, 0, 0.7);
+    }
+
+    /* 角色名 */
+    .character-name {
+      font-weight: bold;
+      color: #ff80ab;
+      margin-bottom: 0.5vw;
+      display: flex;
+      align-items: center;
+      gap: 0.8vw;
+      font-size: 1.2vw;
+      /* 自适应字体大小 */
+    }
+
+    .character-name::before {
+      content: "⚡";
+    }
+
+    /* 对话内容 */
+    .dialog-text {
+      font-size: 1vw;
+      /* 视口单位，字体自适应 */
+      line-height: 1.6;
+    }
+
+    /* 右下角功能按钮 - 适配全屏 */
+    .controls {
+      position: absolute;
+      bottom: 2vw;
+      right: 2vw;
+      display: flex;
+      flex-direction: column;
+      gap: 0.8vw;
+    }
+
+    .control-btn {
+      width: 3vw;
+      /* 自适应按钮大小 */
+      height: 3vw;
+      background-color: rgba(0, 0, 0, 0.5);
+      border: none;
+      border-radius: 4px;
+      color: #fff;
+      font-size: 1vw;
+      /* 按钮文字自适应 */
+      cursor: pointer;
+      transition: background-color 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .control-btn:hover {
+      background-color: rgba(0, 0, 0, 0.7);
+    }
+
+    /* 适配移动端小屏幕 */
+    @media (max-width: 768px) {
+      .dialog-box {
+        right: 2vw;
+        /* 移动端按钮移到文本框上方 */
+        bottom: 10vw;
+      }
+
+      .controls {
+        flex-direction: row;
+        bottom: 2vw;
+        right: 50%;
+        transform: translateX(50%);
+        gap: 0.5vw;
+      }
+
+      .control-btn {
+        width: 6vw;
+        height: 6vw;
+        font-size: 2vw;
+      }
+
+      .character-name {
+        font-size: 3vw;
+      }
+
+      .dialog-text {
+        font-size: 2.5vw;
+      }
+    }
+
+    .bt {
+      position: absolute;
+      width: 150px;
+      top: 20px;
+      right: 20px;
+      padding: 10px 20px;
+      background-color: rgb(252, 248, 249);
+      border: 2px solid rgb(221, 103, 136);
+      border-radius: 20px;
+      font-size: 16px;
+      font-weight: 600;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="game-window">
+    <div class="character-area">
+      <!-- 对话文本框 -->
+      <div class="dialog-box" id="dialogBox">
+        <div class="character-name" id="charName">胜子哥</div>
+        <div class="dialog-text" id="dialogText">被我迷住了吗</div>
+      </div>
+
+      <!-- 功能按钮区 -->
+      <div class="controls">
+        <button class="control-btn">AUTO</button>
+        <button class="control-btn">SKIP</button>
+        <button class="control-btn">SAVE</button>
+        <button class="control-btn">LOAD</button>
+        <button class="control-btn">LOG</button>
+        <button class="control-btn">SYS.</button>
+      </div>
+    </div>
+  </div>
+  <button class="bt" onclick="window.open('index.html')">返回主页</button>
+
+  <script>
+    let dialogues = []; // 空数组，后续从md文件读取
+    let currentIndex = 0;
+    const dialogBox = document.getElementById('dialogBox');
+    const charName = document.getElementById('charName');
+    const dialogText = document.getElementById('dialogText');
+
+    // 读取并解析md文件
+    async function loadDialogues() {
+      try {
+        // 读取dialogues.md文件（注意路径！和HTML文件同目录）
+        const response = await fetch('dialogBox.md');
+        if (!response.ok) throw new Error('无法加载对话文件');
+
+        const mdContent = await response.text();
+        // 解析md内容：按行分割，过滤空行和注释行，拆分角色和对话
+        const lines = mdContent.split('\n').filter(line => {
+          // 跳过空行、以#开头的注释行
+          return line.trim() !== '' && !line.trim().startsWith('#');
+        });
+
+        // 把每行解析成{name, text}对象
+        dialogues = lines.map(line => {
+          const [name, text] = line.split('|');
+          return {
+            name: name ? name.trim() : '未知角色',
+            text: text ? text.trim() : ''
+          };
+        });
+
+        // 初始化显示第一句
+        updateDialog();
+      } catch (error) {
+        console.error('加载对话失败：', error);
+        dialogText.textContent = "对话加载失败，请刷新页面！";
+      }
+    }
+
+    // 更新对话内容（逻辑不变）
+    function updateDialog() {
+      if (currentIndex < dialogues.length) {
+        const current = dialogues[currentIndex];
+        charName.textContent = current.name;
+        dialogText.textContent = current.text;
+        currentIndex++;
+      } else {
+        dialogText.textContent = "—— 对话结束 ——";
+        dialogBox.style.cursor = "default";
+        dialogBox.removeEventListener('click', nextDialog);
+      }
+    }
+
+    // 点击切换下一句（逻辑不变）
+    function nextDialog() {
+      updateDialog();
+    }
+
+    // 绑定事件+加载对话
+    dialogBox.addEventListener('click', nextDialog);
+    loadDialogues(); // 启动时加载md文件
+
+    window.addEventListener('resize', function () { });
+  </script>
+</body>
+
+</html>
